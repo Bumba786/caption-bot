@@ -8,40 +8,40 @@ CUSTOM_CAPTION = "\n\n[@MovieAddaHubOfficial02]\n[@movieaddahub_02]"
 
 logging.basicConfig(level=logging.INFO)
 
-async def start_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # গ্রুপের মেসেজ বা চ্যানেলের পোস্ট—উভয়ই ধরবে
-    msg = update.message if update.message else update.channel_post
-    if not msg: return
+async def auto_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # চ্যানেল পোস্ট বা গ্রুপের মেসেজ ধরবে
+    msg = update.channel_post if update.channel_post else update.message
+    if not msg or not (msg.video or msg.document):
+        return
 
-    # যদি ভিডিও বা কোনো ফাইল (Document) হয়
-    if msg.video or msg.document:
-        # ৫ সেকেন্ড অপেক্ষা করবে যাতে ফাইলটি টেলিগ্রাম সার্ভারে পুরোপুরি আসে
-        await asyncio.sleep(5)
-        
-        original_text = msg.caption if msg.caption else ""
-        
-        # যদি আপনার ইউজারনেম অলরেডি না থাকে তবেই এডিট করবে
-        if "@MovieAddaHubOfficial02" not in original_text:
-            try:
-                await context.bot.edit_message_caption(
-                    chat_id=msg.chat_id,
-                    message_id=msg.message_id,
-                    caption=f"{original_text}{CUSTOM_CAPTION}"
-                )
-                print("সফলভাবে এডিট হয়েছে!")
-            except Exception as e:
-                # যদি গ্রুপে এডিট করার অনুমতি না থাকে, তবে সে নিচে একটি রিপ্লাই দিবে
-                if not update.channel_post:
-                    await msg.reply_text(f"{original_text}{CUSTOM_CAPTION}")
-                logging.error(f"Error: {e}")
+    # ১০ সেকেন্ড অপেক্ষা যাতে টেলিগ্রাম সার্ভারে ফাইলটি এডিট করার জন্য তৈরি হয়
+    await asyncio.sleep(10)
+
+    original = msg.caption if msg.caption else ""
+    
+    if "@MovieAddaHubOfficial02" not in original:
+        new_text = f"{original}{CUSTOM_CAPTION}"
+        try:
+            # এটিই মূল কমান্ড যা ক্যাপশন বদলে দিবে
+            await context.bot.edit_message_caption(
+                chat_id=msg.chat_id,
+                message_id=msg.message_id,
+                caption=new_text
+            )
+            print("Successfully Edited!")
+        except Exception as e:
+            # যদি এডিট করতে না পারে, তবেই শুধু সে রিপ্লাই দিবে (বিকল্প হিসেবে)
+            logging.error(f"Edit failed: {e}")
+            if not update.channel_post:
+                await msg.reply_text(new_text)
 
 if __name__ == '__main__':
-    application = ApplicationBuilder().token(TOKEN).build()
-    # filters.ALL ব্যবহার করেছি যাতে গ্রুপ এবং চ্যানেলের সব ফাইল বটটি পায়
-    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, start_process))
-    
-    print("বট সচল হচ্ছে...")
-    application.run_polling(drop_pending_updates=True)
+    app = ApplicationBuilder().token(TOKEN).build()
+    # filters.ALL ব্যবহার করা হয়েছে যাতে সব মিডিয়া পায়
+    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, auto_edit))
+    print("Bot is running...")
+    app.run_polling(drop_pending_updates=True)
+
 
 
 
