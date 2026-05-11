@@ -3,32 +3,36 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
 TOKEN = "8496302598:AAFMBxGqRGG7mZeINTPWLfCGl06u9SLWN38"
-
-# আপনার চ্যানেলের লিঙ্ক/ক্যাপশন
 CUSTOM_CAPTION = "\n\n[@MovieAddaHubOfficial02]\n[@movieaddahub_02]"
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 async def handle_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # চ্যানেল পোস্ট ধরবে
-    post = update.channel_post if update.channel_post else update.message
-    if not post: return
+    message = update.channel_post if update.channel_post else update.message
+    if not message: return
 
-    # শুধু ভিডিও বা ফাইল এডিট করবে
-    if post.video or post.document:
-        original = post.caption if post.caption else ""
+    # শুধু ভিডিও এবং ডকুমেন্ট এডিট করবে
+    if message.video or message.document:
+        original = message.caption if message.caption else ""
         
-        # আপনার নাম অলরেডি থাকলে আর এডিট করবে না
         if "@MovieAddaHubOfficial02" not in original:
             new_text = f"{original}{CUSTOM_CAPTION}"
             try:
-                # চ্যানেলে হলে এডিট করার চেষ্টা করবে
-                await post.edit_caption(caption=new_text)
+                # চ্যানেলে সরাসরি এডিট করার কমান্ড
+                await context.bot.edit_message_caption(
+                    chat_id=message.chat_id,
+                    message_id=message.message_id,
+                    caption=new_text
+                )
+                logging.info("Caption updated successfully!")
             except Exception as e:
-                logging.error(f"Error: {e}")
+                logging.error(f"Failed to edit: {e}")
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
-    # সব ধরনের মিডিয়া ফাইল চেক করবে
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_posts))
-    application.run_polling()
+    application.run_polling(drop_pending_updates=True) # পুরনো মেসেজ ইগনোর করবে
+
 
 
