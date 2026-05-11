@@ -3,50 +3,46 @@ import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# আপনার বর্তমান টোকেন
 TOKEN = "8496302598:AAFMBxGqRGG7mZeINTPWLfCGl06u9SLWN38"
-
-# আপনার নতুন ক্যাপশন
 CUSTOM_CAPTION = "\n\n[@MovieAddaHubOfficial02]\n[@movieaddahub_02]"
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
-async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # চ্যানেল বা গ্রুপের মেসেজ চেক
-    message = update.channel_post if update.channel_post else update.message
-    if not message:
-        return
+async def start_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # গ্রুপের মেসেজ বা চ্যানেলের পোস্ট—উভয়ই ধরবে
+    msg = update.message if update.message else update.channel_post
+    if not msg: return
 
-    # ভিডিও বা ফাইল হলে ৫ সেকেন্ড অপেক্ষা করবে (যাতে টেলিগ্রামের সাথে কনফ্লিক্ট না হয়)
-    if message.video or message.document:
+    # যদি ভিডিও বা কোনো ফাইল (Document) হয়
+    if msg.video or msg.document:
+        # ৫ সেকেন্ড অপেক্ষা করবে যাতে ফাইলটি টেলিগ্রাম সার্ভারে পুরোপুরি আসে
         await asyncio.sleep(5)
         
-        original_caption = message.caption if message.caption else ""
+        original_text = msg.caption if msg.caption else ""
         
-        # যদি আপনার নাম অলরেডি না থাকে তবেই এডিট করবে
-        if "@MovieAddaHubOfficial02" not in original_caption:
-            new_caption = f"{original_caption}{CUSTOM_CAPTION}"
+        # যদি আপনার ইউজারনেম অলরেডি না থাকে তবেই এডিট করবে
+        if "@MovieAddaHubOfficial02" not in original_text:
             try:
-                # সরাসরি এডিট করার কমান্ড
                 await context.bot.edit_message_caption(
-                    chat_id=message.chat_id,
-                    message_id=message.message_id,
-                    caption=new_caption
+                    chat_id=msg.chat_id,
+                    message_id=msg.message_id,
+                    caption=f"{original_text}{CUSTOM_CAPTION}"
                 )
-                logging.info("Caption successfully updated!")
+                print("সফলভাবে এডিট হয়েছে!")
             except Exception as e:
-                logging.error(f"Error while editing: {e}")
+                # যদি গ্রুপে এডিট করার অনুমতি না থাকে, তবে সে নিচে একটি রিপ্লাই দিবে
+                if not update.channel_post:
+                    await msg.reply_text(f"{original_text}{CUSTOM_CAPTION}")
+                logging.error(f"Error: {e}")
 
 if __name__ == '__main__':
-    # অ্যাপ্লিকেশন তৈরি
     application = ApplicationBuilder().token(TOKEN).build()
+    # filters.ALL ব্যবহার করেছি যাতে গ্রুপ এবং চ্যানেলের সব ফাইল বটটি পায়
+    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, start_process))
     
-    # সব মিডিয়া মেসেজ হ্যান্ডেল করার জন্য
-    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_media))
-    
-    print("Bot is starting...")
-    # drop_pending_updates=True দিলে পুরনো সব জ্যাম বা এরর মেসেজ ক্লিয়ার হয়ে যাবে
+    print("বট সচল হচ্ছে...")
     application.run_polling(drop_pending_updates=True)
+
 
 
 
