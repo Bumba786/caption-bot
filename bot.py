@@ -1,58 +1,64 @@
-import os
 import logging
 import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# আপনার কনফিগারেশন
+# আপনার টোকেন এবং ক্যাপশন সেটিংস
 TOKEN = "8496302598:AAFMBxGqRGG7mZeINTPWLfCGl06u9SLWN38"
-# {file_name} দিলে ফাইলের আসল নাম আসবে, তারপর আপনার লিঙ্ক
+# {file_name} দিলে ফাইলের আসল নাম আসবে, তার নিচে আপনার লিঙ্ক
 CUSTOM_CAPTION = "**{file_name}**\n\n🎬 Join: @MovieAddaHubOfficial02\n📢 Backup: @movieaddahub_02"
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
-async def start_pro_caption(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # চ্যানেল এবং গ্রুপ উভয় পোস্ট রিড করবে
+async def handle_caption(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # চ্যানেল পোস্ট বা গ্রুপের মেসেজ ফিল্টার করা
     msg = update.channel_post if update.channel_post else update.message
-    if not msg: return
+    if not msg:
+        return
 
-    # মিডিয়া ফাইল (ভিডিও/ডকুমেন্ট) চেক
-    media = msg.video or msg.document or msg.audio
+    # চেক করা হচ্ছে এটি ভিডিও না কি কোনো ডকুমেন্ট (ফাইল)
+    media = msg.video or msg.document
     if media:
-        # একটু সময় দেওয়া যাতে ফাইলটি সার্ভারে ঠিকমতো প্রসেস হয়
-        await asyncio.sleep(5)
+        # ৮ সেকেন্ড অপেক্ষা (সার্ভার প্রসেসিং টাইমের জন্য)
+        await asyncio.sleep(8)
         
-        # ফাইলের আসল নাম বের করা
-        file_name = media.file_name if hasattr(media, 'file_name') and media.file_name else "Movie File"
+        # ফাইলের নাম সংগ্রহ করা (যদি থাকে)
+        file_name = getattr(media, 'file_name', "Movie File")
+        if not file_name:
+            file_name = "Movie File"
+            
+        # নতুন ক্যাপশন তৈরি করা
+        new_text = CUSTOM_CAPTION.format(file_name=file_name)
         
-        # নতুন ক্যাপশন ফরম্যাট করা
-        new_caption = CUSTOM_CAPTION.format(file_name=file_name)
-
-        # যদি অলরেডি ক্যাপশন এডিট করা না থাকে
-        if "@MovieAddaHubOfficial02" not in (msg.caption or ""):
+        # যদি আপনার লিঙ্ক অলরেডি না থাকে তবেই এডিট করবে
+        current_caption = msg.caption if msg.caption else ""
+        if "@MovieAddaHubOfficial02" not in current_caption:
             try:
                 await context.bot.edit_message_caption(
                     chat_id=msg.chat_id,
                     message_id=msg.message_id,
-                    caption=new_caption,
+                    caption=new_text,
                     parse_mode='Markdown'
                 )
-                print(f"Success: Caption updated for {file_name}")
+                print(f"Success: Updated {file_name}")
             except Exception as e:
-                # গ্রুপে এডিট না করা গেলে সে নিচে রিপ্লাই দিবে
+                # গ্রুপে অন্যের মেসেজ এডিট করা না গেলে এটি রিপ্লাই হিসেবে দিবে
                 if not update.channel_post:
-                    await msg.reply_text(new_caption, parse_mode='Markdown')
+                    await msg.reply_text(new_text, parse_mode='Markdown')
                 logging.error(f"Error: {e}")
 
 if __name__ == '__main__':
-    # বটের অ্যাপ্লিকেশন তৈরি
-    app = ApplicationBuilder().token(TOKEN).build()
+    application = ApplicationBuilder().token(TOKEN).build()
     
-    # সব ধরণের মিডিয়া মেসেজ ধরার জন্য হ্যান্ডলার
-    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, start_pro_caption))
+    # সব মিডিয়া মেসেজ হ্যান্ডেল করার জন্য
+    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_caption))
     
-    print("🚀 Pro Caption Bot is Running on Railway...")
-    app.run_polling(drop_pending_updates=True)
+    print("🚀 Bot is starting on Railway...")
+    application.run_polling(drop_pending_updates=True)
+
 
 
 
